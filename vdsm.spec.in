@@ -11,19 +11,43 @@ Group:          Applications/System
 License:        GPLv2+
 Url:            http://git.fedorahosted.org/git/?p=vdsm.git
 Source0:        %{vdsm_name}-%{version}.tar.gz
+%if 0%{?suse_version}
+BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}
+%else
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+%endif
 
 BuildRequires: python
-BuildRequires: redhat-rpm-config
 
 Requires: python which
 Requires: sudo >= 1.7.3
 Requires: logrotate
 Requires: python-ethtool
-Requires: nfs-utils dmidecode
+
+Requires: dmidecode
 Requires: lvm2 >= 2.02.72-8
 
+%if 0%{?suse_version}
+# SUSE
+BuildRequires: python-pyflakes
+Requires: nfs-client
+Requires: virt-utils
+Requires: kvm >= 0.12.1.2
+Requires: libvirt >= 0.9.4
+Requires: libvirt-python >= 0.9.4
+# FIXME not sure about this version
+Requires: open-iscsi >= 2.0
+Requires: multipath-tools >= 0.4.9
+Requires(post): cyrus-sasl
+Requires(pre): pwdutils
+%else
+# Common RHEL/Fedora
+BuildRequires: redhat-rpm-config
+BuildRequires: pyflakes
+Requires: nfs-utils
+Requires(post): cyrus-sasl-lib
 %if 0%{?rhel}
+# RHEL
 Requires: qemu-kvm >= 2:0.12.1.2-2.189
 Requires: qemu-img >= 2:0.12.1.2-2.189
 Requires: libvirt >= 0.9.4-13
@@ -31,12 +55,14 @@ Requires: libvirt-python >= 0.9.4-13
 Requires: iscsi-initiator-utils >= 6.2.0.872-15
 Requires: device-mapper-multipath >= 0.4.9-31
 %else
+# Fedora
 Requires: qemu-kvm >= 2:0.15.0-4
 Requires: qemu-img >= 2:0.15.0-4
 Requires: libvirt >= 0.9.6-2
 Requires: libvirt-python >= 0.9.6-2
 Requires: iscsi-initiator-utils >= 6.2.0.872-12
 Requires: device-mapper-multipath >= 0.4.9-18
+%endif
 %endif
 
 Requires: psmisc >= 22.6-15
@@ -47,8 +73,6 @@ Requires: dosfstools
 Requires: policycoreutils-python
 Requires: libselinux-python
 Requires: kernel >= 2.6.32-198
-Requires(post): cyrus-sasl-lib
-BuildRequires: pyflakes
 Conflicts: selinux-policy-targeted < 3.7.19-80.el6
 
 %description
@@ -118,6 +142,11 @@ make
 rm -rf %{buildroot}
 make DESTDIR=%{buildroot} install
 
+%if 0%{?suse_version}
+mv %{buildroot}/etc/rc.d/init.d/vdsmd %{buildroot}/etc/init.d
+rm -rf %{buildroot}/etc/rc.d
+%endif
+
 %if 0%{?rhel}
 # this is not commonplace, but we want /var/log/core to be a world-writable
 # dropbox for core dumps.
@@ -135,10 +164,12 @@ make check
 rm -rf %{buildroot}
 
 %pre
-/usr/bin/getent passwd vdsm >/dev/null || \
-    /usr/sbin/useradd -r -u 36 -g kvm -d /var/lib/vdsm \
-        -s /sbin/nologin -c "Node Virtualization Manager" vdsm
-/usr/sbin/usermod -a -G qemu vdsm
+/usr/bin/getent group kvm >/dev/null || /usr/sbin/groupadd -r kvm 2>/dev/null
+/usr/bin/getent group qemu >/dev/null || /usr/sbin/groupadd -r qemu 2>/dev/null
+/usr/bin/getent passwd qemu >/dev/null || \
+  /usr/sbin/useradd -r -u 36 -g kvm -G qemu -d /var/lib/vdsm -s /sbin/nologin \
+  -c "Node Virtualization Manager" vdsm
+
 
 %post
 tmp_sudoers=$(mktemp)
