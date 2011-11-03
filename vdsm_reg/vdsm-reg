@@ -5,6 +5,17 @@
 # chkconfig: 2345 11 99
 # description: vdsm registration service
 #
+### BEGIN INIT INFO
+# Provides:       vdsm-reg
+# Required-Start:
+# Required-Stop:
+# Default-Start:  3 5
+# Default-Stop:   0 1 2 6
+# Short-Description: vdsm registration service
+# Description:    vdsm registration service
+### END INIT INFO
+
+
 PIDFILE=/var/run/vdsm-reg.pid
 LOCKFILE=/var/lock/subsys/vdsm-reg
 prog=vdsm-reg
